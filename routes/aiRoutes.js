@@ -1,9 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const { conversar } = require('../controllers/aiController');
+import express from 'express';
+import { conversar } from '../controllers/aiController.js';
 
-// Definimos que cuando llegue una petición POST a "/" (que realmente será /api/ai/conversar)
-// se ejecute la función conversar que acabamos de crear en el controlador.
+const router = express.Router();
+
 router.post('/conversar', conversar);
 
-module.exports = router;
+export default router;

@@ -110,4 +110,4 @@ Ejemplos:
 
 `;
 
-module.exports = SUSANO_PROMPT;
+export default SUSANO_PROMPT;

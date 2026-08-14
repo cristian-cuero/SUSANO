@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const SusanoMemorySchema = new mongoose.Schema({
   userId: { 
@@ -9,11 +9,11 @@ const SusanoMemorySchema = new mongoose.Schema({
   usuario: {
     nombre: { type: String, default: 'Creador' },
     datosClave: {
-      type: Map, // <--- Esto permite guardar cualquier tipo de dato dinámico
+      type: Map,
       of: mongoose.Schema.Types.Mixed,
       default: {}
     }
   }
-}, { timestamps: true }); // Guarda automáticamente la fecha de creación y actualización
+}, { timestamps: true });
 
-module.exports = mongoose.model('SusanoMemory', SusanoMemorySchema);
+export default mongoose.model('SusanoMemory', SusanoMemorySchema);

@@ -1,5 +1,6 @@
-const aiService = require("../services/groqService");
-const memoryService = require("../services/memoryService");
+import aiService from "../services/groqService.js";
+import memoryService from "../services/memoryService.js";
+import { obtenerSocket } from "../services/socketService.js";
 
 const emocionesValidas = [
   "neutral",
@@ -14,24 +15,25 @@ const emocionesValidas = [
 ];
 
 const accionesValidas = [
-    "NINGUNA",
-    "EXPLORAR",
-    "PARAR",
-    "SEGUIR_PERSONA"
+  "NINGUNA",
+  "EXPLORAR",
+  "PARAR",
+  "SEGUIR_PERSONA"
 ];
 
-
-exports.conversar = async (req, res) => {
+export const conversar = async (req, res) => {
   try {
     const { mensaje } = req.body;
 
     const memoria = await memoryService.obtenerMemoria("creador_principal");
 
     const recuerdos = JSON.stringify(
-      Object.fromEntries(memoria.usuario.datosClave),
+      Object.fromEntries(memoria.usuario.datosClave)
     );
 
-    const respuestaIA = await aiService.preguntar(recuerdos, mensaje);
+    const socket =  obtenerSocket();
+
+    const respuestaIA = await aiService.preguntar(recuerdos, mensaje, socket);
 
     if (
       respuestaIA.nuevosRecuerdos &&
@@ -39,7 +41,7 @@ exports.conversar = async (req, res) => {
     ) {
       await memoryService.guardarRecuerdos(
         memoria,
-        respuestaIA.nuevosRecuerdos,
+        respuestaIA.nuevosRecuerdos
       );
     }
 
@@ -52,11 +54,8 @@ exports.conversar = async (req, res) => {
 
     return res.json({
       success: true,
-
       respuesta: respuestaIA.respuesta,
-
       emocion: respuestaIA.emocion,
-
       accion: respuestaIA.accion,
     });
   } catch (err) {
