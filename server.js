@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws"; // 2. Servidor de WebSockets
 import connectDB from "./config/db.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import { guardarSocket, limpiarSocket } from "./services/socketService.js";
+import { conversarWebSocket } from "./controllers/aiController.js";
 
 const app = express();
 
@@ -28,8 +29,20 @@ const wss = new WebSocketServer({
   server,
 });
 
-wss.on("connection", (ws) => {
+wss.on("connection",  (ws) => {
   console.log("⚡ ¡Susano detectó un nuevo cliente WebSocket conectado!");
+
+   ws.on("message",  async (mensaje) => {
+
+    const texto = mensaje.toString();
+
+     console.log("📩 Mensaje recibido de Susano:", texto);
+
+    // Aquí llamaremos al cerebro
+    await conversarWebSocket(texto, ws);
+
+  });
+
   guardarSocket(ws);
   ws.on("close", () => {
     limpiarSocket(ws);

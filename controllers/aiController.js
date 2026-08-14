@@ -67,3 +67,67 @@ export const conversar = async (req, res) => {
     });
   }
 };
+
+export const conversarWebSocket = async (mensaje, socket) => {
+
+  try {
+
+    const memoria =
+      await memoryService.obtenerMemoria("creador_principal");
+
+    const recuerdos = JSON.stringify(
+      Object.fromEntries(memoria.usuario.datosClave)
+    );
+
+    const respuestaIA =
+      await aiService.preguntar(
+        recuerdos,
+        mensaje,
+        socket
+      );
+
+    // Guardar nuevos recuerdos
+    if (
+      respuestaIA.nuevosRecuerdos &&
+      Object.keys(respuestaIA.nuevosRecuerdos).length > 0
+    ) {
+
+      await memoryService.guardarRecuerdos(
+        memoria,
+        respuestaIA.nuevosRecuerdos
+      );
+
+    }
+
+    // Validar emoción
+    if (!emocionesValidas.includes(respuestaIA.emocion)) {
+      respuestaIA.emocion = "neutral";
+    }
+
+    // Validar acción
+    if (!accionesValidas.includes(respuestaIA.accion)) {
+      respuestaIA.accion = "NINGUNA";
+    }
+
+    // Enviar respuesta al ESP32
+    socket.send(JSON.stringify({
+      success: true,
+      respuesta: respuestaIA.respuesta,
+      emocion: respuestaIA.emocion,
+      accion: respuestaIA.accion
+    }));
+
+  } catch (error) {
+
+    console.error("❌ Error conversando por WebSocket:", error);
+
+    socket.send(JSON.stringify({
+      success: false,
+      respuesta: "No pude comunicarme con mi cerebro.",
+      emocion: "triste",
+      accion: "NINGUNA"
+    }));
+
+  }
+
+}
