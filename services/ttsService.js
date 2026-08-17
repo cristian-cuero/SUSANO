@@ -67,7 +67,7 @@ export async function transmitirAudioPCM(texto, socketCliente) {
             paquetesPCM++;
 
             // ⏱️ CLAVE: Pausa de 35ms para sincronizar el envío con el tiempo de reproducción real del ESP32
-            await esperar(35);
+            await esperar(40);
           }
         }
       });
