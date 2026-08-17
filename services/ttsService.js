@@ -13,8 +13,6 @@ const tts = new EdgeTTS({
 });
 
 const TAMANO_PAQUETE = 1920;
-
-// ⏱️ Función auxiliar para pausar el envío sin bloquear el Event Loop
 const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function transmitirAudioPCM(texto, socketCliente) {
@@ -44,33 +42,38 @@ export async function transmitirAudioPCM(texto, socketCliente) {
       let bytesPCM = 0;
       let paquetesPCM = 0;
 
-      // ==========================================
-      // 🎵 PCM SALIENDO DE FFMPEG (AHORA ES ASYNC)
-      // ==========================================
-      ffmpeg.stdout.on("data", async (chunkPCM) => {
-        if (primerPCM) {
-          const tiempo = performance.now() - inicioTTS;
-          console.log(`⚡ PRIMER PCM: ${tiempo.toFixed(2)} ms`);
-          primerPCM = false;
-        }
+      // =========================================================
+      // 🎵 PROCESAMIENTO SECUENCIAL (Evita eventos concurrentes)
+      // =========================================================
+      (async () => {
+        try {
+          for await (const chunkPCM of ffmpeg.stdout) {
+            if (primerPCM) {
+              const tiempo = performance.now() - inicioTTS;
+              console.log(`⚡ PRIMER PCM: ${tiempo.toFixed(2)} ms`);
+              primerPCM = false;
+            }
 
-        bufferPCM = Buffer.concat([bufferPCM, chunkPCM]);
+            bufferPCM = Buffer.concat([bufferPCM, chunkPCM]);
 
-        // Mientras tengamos al menos 1920 bytes
-        while (bufferPCM.length >= TAMANO_PAQUETE) {
-          const paquete = bufferPCM.subarray(0, TAMANO_PAQUETE);
-          bufferPCM = bufferPCM.subarray(TAMANO_PAQUETE);
+            while (bufferPCM.length >= TAMANO_PAQUETE) {
+              const paquete = bufferPCM.subarray(0, TAMANO_PAQUETE);
+              bufferPCM = bufferPCM.subarray(TAMANO_PAQUETE);
 
-          if (socketCliente && socketCliente.readyState === 1) {
-            socketCliente.send(paquete);
-            bytesPCM += paquete.length;
-            paquetesPCM++;
+              if (socketCliente && socketCliente.readyState === 1) {
+                socketCliente.send(paquete);
+                bytesPCM += paquete.length;
+                paquetesPCM++;
 
-            // ⏱️ CLAVE: Pausa de 35ms para sincronizar el envío con el tiempo de reproducción real del ESP32
-            await esperar(40);
+                // ⏱️ Ritmo de consumo exacto del I2S (38ms a 40ms)
+                await esperar(38);
+              }
+            }
           }
+        } catch (err) {
+          console.error("❌ Error leyendo stdout de FFmpeg:", err);
         }
-      });
+      })();
 
       ffmpeg.on("error", (error) => {
         console.error("❌ Error FFmpeg:", error.message);
@@ -80,7 +83,7 @@ export async function transmitirAudioPCM(texto, socketCliente) {
       ffmpeg.stderr.on("data", () => {});
 
       ffmpeg.on("close", async (code) => {
-        // Enviar el sobrante si queda algo
+        // Enviar el sobrante si queda algo en el buffer
         if (
           bufferPCM.length > 0 &&
           socketCliente &&
@@ -89,7 +92,7 @@ export async function transmitirAudioPCM(texto, socketCliente) {
           socketCliente.send(bufferPCM);
           bytesPCM += bufferPCM.length;
           paquetesPCM++;
-          console.log(`📦 Último paquete: ${bufferPCM.length} bytes`);
+          console.log(`📦 Último paquete enviado: ${bufferPCM.length} bytes`);
         }
 
         const tiempoTotal = performance.now() - inicioTTS;
