@@ -66,7 +66,7 @@ export async function transmitirAudioPCM(texto, socketCliente) {
                 paquetesPCM++;
 
                 // ⏱️ Ritmo de consumo exacto del I2S (38ms a 40ms)
-              //  await esperar(35);
+                await esperar(38);
               }
             }
           }
