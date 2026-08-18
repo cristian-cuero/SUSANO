@@ -43,7 +43,7 @@ export async function transmitirAudioPCM(texto, socketCliente) {
       let paquetesPCM = 0;
 
       // =========================================================
-      // 🎵 PROCESAMIENTO SECUENCIAL (Evita eventos concurrentes)
+      // 🎵 PROCESAMIENTO SECUENCIAL (Con colchón de precarga)
       // =========================================================
       (async () => {
         try {
@@ -65,8 +65,12 @@ export async function transmitirAudioPCM(texto, socketCliente) {
                 bytesPCM += paquete.length;
                 paquetesPCM++;
 
-                // ⏱️ Ritmo de consumo exacto del I2S (38ms a 40ms)
-                await esperar(38);
+                // ⚡ PRE-CARGA DEL BÚFER:
+                // Los primeros 8 paquetes (~320ms de audio) se envían INMEDIATAMENTE.
+                // Después, mantenemos el ritmo exacto de consumo de I2S (40ms).
+                if (paquetesPCM > 8) {
+                  await esperar(40);
+                }
               }
             }
           }
