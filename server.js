@@ -1,57 +1,89 @@
-import "dotenv/config"; //
+import "dotenv/config";
+
 import express from "express";
-import http from "http"; // 1. Módulo nativo para crear el servidor
-import { WebSocketServer } from "ws"; // 2. Servidor de WebSockets
+import http from "http";
+import { WebSocketServer } from "ws";
+import {
+    configurarCuerpo,
+    manejarDesconexionCuerpo
+} from "./services/cuerpo/cuerpoService.js";
+
 import connectDB from "./config/db.js";
+
 import aiRoutes from "./routes/aiRoutes.js";
+
 import { guardarSocket, limpiarSocket } from "./services/socketService.js";
+
 import { conversarWebSocket } from "./controllers/aiController.js";
 
 const app = express();
 
 app.use(express.json());
 
-// Conexión a la base de datos
+// ========================================
+// CONEXIÓN A LA BASE DE DATOS
+// ========================================
+
 connectDB();
 
-// Rutas de la IA
+// ========================================
+// RUTAS DE LA IA
+// ========================================
+
 app.use("/api/ai", aiRoutes);
 
-// Ruta de prueba rápida
+// ========================================
+// RUTA DE PRUEBA
+// ========================================
+
 app.get("/", (req, res) => {
   res.send("El sistema nervioso de Susano está encendido y listo. 🤖");
 });
 
-// --- 3. CREAMOS EL SERVIDOR HTTP Y CONECTAMOS WEBSOCKETS ---
+// ========================================
+// SERVIDOR HTTP
+// ========================================
+
 const server = http.createServer(app);
+
+// ========================================
+// WEBSOCKET
+// ========================================
 
 const wss = new WebSocketServer({
   server,
 });
 
-wss.on("connection",  (ws) => {
-  console.log("⚡ ¡Susano detectó un nuevo cliente WebSocket conectado!");
+// ========================================
+// CLIENTES CONECTADOS
+// ========================================
 
-   ws.on("message",  async (mensaje) => {
+wss.on("connection", (ws) => {
 
-    const texto = mensaje.toString();
+    console.log(
+        "⚡ ¡Susano detectó un nuevo cliente WebSocket conectado!"
+    );
 
-     console.log("📩 Mensaje recibido de Susano:", texto);
+    configurarCuerpo(ws);
 
-    // Aquí llamaremos al cerebro
-    await conversarWebSocket(texto, ws);
+    guardarSocket(ws);
 
-  });
+    ws.on("close", () => {
 
-  guardarSocket(ws);
-  ws.on("close", () => {
-    limpiarSocket(ws);
-  });
+        manejarDesconexionCuerpo(ws);
+
+        limpiarSocket(ws);
+    });
 });
 
-// --- 4. CAMBIO CLAVE: Escuchamos en 'server', no en 'app' ---
+// ========================================
+// PUERTO
+// ========================================
+
 const PORT = process.env.PORT || 5000;
+
 server.listen(PORT, () => {
   console.log(`[Servidor] Corriendo en http://localhost:${PORT} 🚀`);
+
   console.log(`[WebSocket] Listo en ws://localhost:${PORT}`);
 });
